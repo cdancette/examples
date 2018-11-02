@@ -1,15 +1,36 @@
 import os
 import torch
+import pyphen
+from nltk.corpus import cmudict
+
+phen = pyphen.Pyphen(lang='en')
+
+cmu_d = cmudict.dict()
+
+
+def is_multisyllabic(word):
+    if word in cmu_d:
+        cmu_syl = [len(list(y for y in x if y[-1].isdigit())) for x in cmu_d[word.lower()]] 
+        cmu_test = cmu_syl != [1]
+    else:
+        cmu_test = False
+
+    return '-' in phen.inserted(word) or cmu_test
 
 class Dictionary(object):
     def __init__(self):
         self.word2idx = {}
         self.idx2word = []
+        self.multisyllabic_ids = [] # mask to delete probabilities
 
     def add_word(self, word):
+        id = len(self.idx2word)
         if word not in self.word2idx:
             self.idx2word.append(word)
             self.word2idx[word] = len(self.idx2word) - 1
+            if (is_multisyllabic(word) or word in ["'", '"', "<unk>", "=", "<eos>", "@"] or "@" in word):
+                self.multisyllabic_ids.append(id)
+
         return self.word2idx[word]
 
     def __len__(self):
